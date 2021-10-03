@@ -36,7 +36,7 @@ enum Direction {
     SW,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Grid {
     cells: Vec<Vec<Cell>>,
     size_x: i32,
@@ -291,4 +291,174 @@ fn calc_range(x: i32, max: i32) -> ops::RangeInclusive<i32> {
     let start = if x > 0 { x - 1 } else { x };
     let end = if x < max { x + 1 } else { x };
     start..=end
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn parse_empty_pattern_file() {
+        let empty = Grid {
+            cells: Vec::new(),
+            size_x: 0,
+            size_y: 0,
+        };
+        assert_eq!(parse_pattern_file(""), empty);
+    }
+
+    #[test]
+    #[should_panic]
+    fn parse_invalid_pattern_file() {
+        let invalid = "abcd";
+        parse_pattern_file(invalid);
+    }
+
+    #[test]
+    fn parse_simple_pattern_file() {
+        let grid_string = "-x-\n-x-\n-x-";
+        let mut cells = Vec::new();
+        let (size_x, size_y) = (3, 3);
+        for y in 0..size_y {
+            let mut row = Vec::new();
+            for x in 0..size_x {
+                let mut alive = false;
+                if x == 1 {
+                    alive = true;
+                }
+                let cell = Cell { x, y, alive };
+                row.push(cell);
+            }
+            cells.push(row);
+        }
+        let expected_grid = Grid {
+            cells,
+            size_x,
+            size_y,
+        };
+        assert_eq!(parse_pattern_file(grid_string), expected_grid);
+    }
+
+    #[test]
+    fn kill_cell() {
+        let grid = parse_pattern_file("----\n--x-\n-x--\n-x--\n----");
+        let cell = grid.cells[1][2];
+        assert_eq!(cell.alive, true);
+        assert_eq!(grid.get_next_state(cell), false);
+    }
+
+    #[test]
+    fn revive_cell() {
+        let grid = parse_pattern_file("----\n--x-\n-x--\n-x--\n----");
+        let cell = grid.cells[2][2];
+        assert_eq!(cell.alive, false);
+        assert_eq!(grid.get_next_state(cell), true);
+    }
+
+    #[test]
+    fn let_cells_be() {
+        let grid = parse_pattern_file("----\n--x-\n-x--\n-x--\n----");
+
+        let alive_cell = grid.cells[2][1];
+        assert_eq!(alive_cell.alive, true);
+        assert_eq!(grid.get_next_state(alive_cell), true);
+
+        let dead_cell = grid.cells[1][1];
+        assert_eq!(dead_cell.alive, false);
+        assert_eq!(grid.get_next_state(dead_cell), false);
+    }
+
+    #[test]
+    fn expand_north() {
+        let mut grid = parse_pattern_file("---\n-x-\n---");
+        let row_count = grid.cells.len();
+        let col_count = grid.cells[0].len();
+        let mut cell = grid.cells[1][1];
+        assert_eq!(cell.alive, true);
+
+        grid.expand(Direction::N);
+        cell = grid.cells[1][1];
+        let shifted_cell = grid.cells[2][1];
+        assert_eq!(grid.cells.len(), row_count + 1);
+        assert_eq!(grid.cells[row_count].len(), col_count);
+        assert_eq!(cell.alive, false);
+        assert_eq!(shifted_cell.alive, true);
+    }
+
+    #[test]
+    fn expand_south() {
+        let mut grid = parse_pattern_file("---\n-x-\n---");
+        let row_count = grid.cells.len();
+        let col_count = grid.cells[0].len();
+        grid.expand(Direction::S);
+        assert_eq!(grid.cells.len(), row_count + 1);
+        assert_eq!(grid.cells[row_count].len(), col_count);
+    }
+
+    #[test]
+    fn expand_east() {
+        let mut grid = parse_pattern_file("---\n-x-\n---");
+        let row_len = grid.cells[0].len();
+        grid.expand(Direction::E);
+        for row in &grid.cells {
+            assert_eq!(row.len(), row_len + 1);
+        }
+    }
+
+    #[test]
+    fn expand_west() {
+        let mut grid = parse_pattern_file("---\n-x-\n---");
+        let row_len = grid.cells[0].len();
+        let mut cell = grid.cells[1][1];
+        assert_eq!(cell.alive, true);
+
+        grid.expand(Direction::W);
+        cell = grid.cells[1][1];
+        let shifted_cell = grid.cells[1][2];
+        assert_eq!(cell.alive, false);
+        assert_eq!(shifted_cell.alive, true);
+
+        for row in &grid.cells {
+            assert_eq!(row.len(), row_len + 1);
+        }
+    }
+
+    #[test]
+    fn expand_northeast() {
+        let mut grid1 = parse_pattern_file("---\n-x-\n---");
+        let mut grid2 = grid1.clone();
+        grid1.expand(Direction::NE);
+        grid2.expand(Direction::N);
+        grid2.expand(Direction::E);
+        assert_eq!(grid1, grid2);
+    }
+
+    #[test]
+    fn expand_northwest() {
+        let mut grid1 = parse_pattern_file("---\n-x-\n---");
+        let mut grid2 = grid1.clone();
+        grid1.expand(Direction::NW);
+        grid2.expand(Direction::N);
+        grid2.expand(Direction::W);
+        assert_eq!(grid1, grid2);
+    }
+
+    #[test]
+    fn expand_southeast() {
+        let mut grid1 = parse_pattern_file("---\n-x-\n---");
+        let mut grid2 = grid1.clone();
+        grid1.expand(Direction::SE);
+        grid2.expand(Direction::S);
+        grid2.expand(Direction::E);
+        assert_eq!(grid1, grid2);
+    }
+
+    #[test]
+    fn expand_southwest() {
+        let mut grid1 = parse_pattern_file("---\n-x-\n---");
+        let mut grid2 = grid1.clone();
+        grid1.expand(Direction::SW);
+        grid2.expand(Direction::S);
+        grid2.expand(Direction::W);
+        assert_eq!(grid1, grid2);
+    }
 }
