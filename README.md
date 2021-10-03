@@ -6,7 +6,6 @@ Part of my journey in learning Rust.
 # Pattern files
 The patterns are based on the example patterns [here](http://pi.math.cornell.edu/~lipa/mec/lesson6.html).
 
-* test-\*: Patterns used in unit tests.
 * triomino1: Should end at generation 2.
 * triomino2: repeats a pattern of a vertical line followed by a horizontal line.
 * triomino3: Stabilizes into a square after only one generation.
