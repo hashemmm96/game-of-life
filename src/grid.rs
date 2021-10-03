@@ -157,102 +157,99 @@ impl Grid {
         }
     }
 
-    fn add_column(&mut self, direction: Direction) {
-        if direction == Direction::E {
-            // Add a new column
-            for row_number in 0..self.size_y {
-                let new_cell = Cell {
-                    x: self.size_x,
-                    y: row_number,
-                    alive: false,
-                };
-                self.cells[row_number as usize].push(new_cell);
-            }
-            self.size_x += 1;
-        } else if direction == Direction::W {
-            // Need to shift every cell in every row to the right
-            for row_number in 0..self.size_y {
-                let mut shifted_row = Vec::new();
-                let new_cell = Cell {
-                    x: 0,
-                    y: row_number,
-                    alive: false,
-                };
-                shifted_row.push(new_cell);
-                for cell in &self.cells[row_number as usize] {
-                    let mut shifted_cell = *cell;
-                    shifted_cell.x += 1;
-                    shifted_row.push(shifted_cell);
-                }
-                self.cells[row_number as usize] = shifted_row;
-            }
-            self.size_x += 1;
+    fn add_column_east(&mut self) {
+        for row_number in 0..self.size_y {
+            let new_cell = Cell {
+                x: self.size_x,
+                y: row_number,
+                alive: false,
+            };
+            self.cells[row_number as usize].push(new_cell);
         }
+        self.size_x += 1;
     }
 
-    fn add_row(&mut self, direction: Direction) {
-        if direction == Direction::S {
-            // Add a new row
-            let mut new_row = Vec::new();
-            for col_number in 0..self.size_x {
-                let new_cell = Cell {
-                    x: col_number,
-                    y: self.size_y,
-                    alive: false,
-                };
-                new_row.push(new_cell);
+    fn add_column_west(&mut self) {
+        // Need to shift every cell in every row to the right
+        for row_number in 0..self.size_y {
+            let mut shifted_row = Vec::new();
+            let new_cell = Cell {
+                x: 0,
+                y: row_number,
+                alive: false,
+            };
+            shifted_row.push(new_cell);
+            for cell in &self.cells[row_number as usize] {
+                let mut shifted_cell = *cell;
+                shifted_cell.x += 1;
+                shifted_row.push(shifted_cell);
             }
-            self.cells.push(new_row);
-            self.size_y += 1;
-        } else if direction == Direction::N {
-            // Need to shift every element in every row downwards
-            for row_number in 0..self.size_y as usize {
-                let mut shifted_row = Vec::new();
-                for cell in &self.cells[row_number] {
-                    let mut shifted_cell = *cell;
-                    shifted_cell.y += 1;
-                    shifted_row.push(shifted_cell);
-                }
-                self.cells[row_number] = shifted_row;
-            }
-            // Then add new row
-            let mut new_row = Vec::new();
-            for col_number in 0..self.size_x {
-                let new_cell = Cell {
-                    x: col_number,
-                    y: 0,
-                    alive: false,
-                };
-                new_row.push(new_cell);
-            }
-            self.cells.insert(0, new_row);
-            self.size_y += 1;
+            self.cells[row_number as usize] = shifted_row;
         }
+        self.size_x += 1;
+    }
+
+    fn add_row_north(&mut self) {
+        // Need to shift every element in every row downwards
+        for row_number in 0..self.size_y as usize {
+            let mut shifted_row = Vec::new();
+            for cell in &self.cells[row_number] {
+                let mut shifted_cell = *cell;
+                shifted_cell.y += 1;
+                shifted_row.push(shifted_cell);
+            }
+            self.cells[row_number] = shifted_row;
+        }
+        // Then add new row
+        let mut new_row = Vec::new();
+        for col_number in 0..self.size_x {
+            let new_cell = Cell {
+                x: col_number,
+                y: 0,
+                alive: false,
+            };
+            new_row.push(new_cell);
+        }
+        self.cells.insert(0, new_row);
+        self.size_y += 1;
+    }
+
+    fn add_row_south(&mut self) {
+        let mut new_row = Vec::new();
+        for col_number in 0..self.size_x {
+            let new_cell = Cell {
+                x: col_number,
+                y: self.size_y,
+                alive: false,
+            };
+            new_row.push(new_cell);
+        }
+        self.cells.push(new_row);
+        self.size_y += 1;
     }
 
     fn expand(&mut self, direction: Direction) {
+        // Add rows
         match direction {
-            Direction::N | Direction::NE | Direction::NW => self.add_row(Direction::N),
-            Direction::S | Direction::SE | Direction::SW => self.add_row(Direction::S),
-            Direction::E => self.add_column(Direction::E),
-            Direction::W => self.add_column(Direction::W),
-        };
-        match direction {
-            Direction::NE => self.add_column(Direction::E),
-            Direction::NW => self.add_column(Direction::W),
-            Direction::SE => self.add_column(Direction::E),
-            Direction::SW => self.add_column(Direction::W),
+            Direction::N | Direction::NE | Direction::NW => self.add_row_north(),
+            Direction::S | Direction::SE | Direction::SW => self.add_row_south(),
             _ => {}
-        };
+        }
+        // Add columns
+        match direction {
+            Direction::E | Direction::NE | Direction::SE => self.add_column_east(),
+            Direction::W | Direction::NW | Direction::SW => self.add_column_west(),
+            _ => {}
+        }
     }
 }
 
 pub fn create_grid(filename: &str) -> Grid {
     let contents = fs::read_to_string(filename).unwrap();
-    parse_grid_file(&contents)
+    parse_pattern_file(&contents)
 }
 
-fn parse_grid_file(grid_string: &str) -> Grid {
+fn parse_pattern_file(grid_string: &str) -> Grid {
     let mut cells: Vec<Vec<Cell>> = Vec::new();
     let mut x = 0;
     let mut y = 0;
@@ -262,7 +259,12 @@ fn parse_grid_file(grid_string: &str) -> Grid {
         x = 0;
 
         for char in line.chars() {
-            let alive = if char == 'x' { true } else { false };
+            let alive;
+            match char {
+                'x' => alive = true,
+                '-' => alive = false,
+                _ => panic!("Invalid file format."),
+            }
             let cell = Cell { x, y, alive };
             row.push(cell);
             x += 1;
